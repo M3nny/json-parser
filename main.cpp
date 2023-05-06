@@ -18,74 +18,19 @@ public:
     static constexpr double inf = std::numeric_limits<double>::max();
     impl() : type('\0'), num(inf), boolean(false), string("\0"), l_front(nullptr), l_back(nullptr), d_front(nullptr), d_back(nullptr) {}
 
-    template<typename T>
-    struct Cell {
-        T info;
-        Cell* next;
+    struct List_cell {
+        json info;
+        List_cell* next;
     };
-    typedef Cell<json>* List;
-    typedef Cell<std::pair<std::string, json>>* Dict;
+    typedef List_cell* List;
 
-    bool empty() const {
-        if (is_list()) {
-            return l_front == nullptr;
-        } else if (is_dictionary()) {
-            return d_front == nullptr;
-        } else {
-            std::cout << "Funzione empty usata su un json che non è una lista o un dizionario, terminazione programma" << std::endl; // TODO: sostituire con eccezione
-            exit(0);
-        }
-    }
+    struct Dictionary_cell {
+        std::pair<std::string, json> info;
+        Dictionary_cell* next;
+    };
+    typedef Dictionary_cell* Dict;
 
-	bool is_list() const {return type == '[';}
-	bool is_dictionary() const {return type == '{';}
-	bool is_string() const {return string != "\0";}
-	bool is_number() const {return num != inf;}
-	bool is_bool() const {return type == 'b';}
-	bool is_null() const {return type == '\0' and  num == inf and string == "\0" and l_front== nullptr and d_front == nullptr;}
-    double& get_number() {return num;}
-	double const& get_number() const {return num;}
-	bool& get_bool() {return boolean;}
-	bool const& get_bool() const {return boolean;}
-	std::string& get_string() {return string;}
-	std::string const& get_string() const {return string;}
-	void set_string(std::string const& s) {string = s;}
-	void set_bool(bool b) {boolean = b; type = 'b';}
-	void set_number(double n) {num = n;}
-	void set_null(); // TODO: chiamare prima di ogni set
-	void set_list() {type = '[';} // soluzione temporanea che usa type per discriminare se è una lista
-	void set_dictionary() {type = '{';} // soluzione temporanea che usa type per discriminare se è un dizionario
-
-	void push_front(json const& j) {
-        if (is_list()) {
-            if (empty()) {
-                l_front = l_back = new Cell<json> {j, nullptr}; // TODO: fare copy constructor
-                return;
-            }
-            std::cout << "inserisco con lista non vuota" << std::endl;
-            l_front = new Cell<json> {j, l_front};
-        } else {
-            std::cout << "Push front fallito: non una lista" << std::endl; // TODO: sostituire con eccezione
-        }
-    }
-	void push_back(json const& j) {
-        if (is_list()) {
-            if (empty()) {
-                push_front(j);
-                return;
-            }
-            l_back->next = new Cell<json> {j, nullptr};
-            l_back = l_back->next;
-        } else {
-            std::cout << "Push back fallito: non una lista" << std::endl; // TODO: sostituire con eccezione
-        }
-    }
-	void insert(std::pair<std::string,json> const&); // TODO
-
-
-private:
     char type;
-
     double num;
     bool boolean;
     std::string string;
@@ -93,42 +38,116 @@ private:
     Dict d_front, d_back;
 };
 
+// -------------------- ITERATORS --------------------
+struct json::list_iterator {
+public:
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = json;
+    using pointer = json*;
+    using reference = json&;
+    list_iterator(impl::List);
+
+    reference operator*() const {return ptr->info;}
+    pointer operator->() const {return &(ptr->info);}
+    list_iterator& operator++() {ptr = ptr->next; return *this;}
+    list_iterator operator++(int) {list_iterator it = {ptr}; ++(*this); return it;}
+    bool operator==(list_iterator const& rhs) const {return ptr == rhs.ptr;}
+    bool operator!=(list_iterator const& rhs) const {return ptr != rhs.ptr;}
+    list_iterator begin_list() {return list_iterator{(*this)->pimpl->l_front};}
+    list_iterator end_list() {return list_iterator{nullptr};}
+
+private:
+    impl::List ptr;
+};
+
 // -------------------- JSON PUBLIC METHODS --------------------
 json::json() {
     std::cout << "costruttore" << std::endl;
     pimpl = new impl;
 }
-json::json(json const&) {std::cout << "copy constructor" << std::endl;}
+json::json(json const& rhs) : json() {
+    std::cout << "copy constructor" << std::endl;
+    if (rhs.is_list()) { // TODO: implementare con iteratori
+        auto ptr = rhs.pimpl->l_front;
+        while (ptr) {
+            push_back(ptr->info);
+            ptr = ptr->next;
+        }
+    } else if (rhs.is_string()) {
+        set_string(rhs.get_string());
+    }
+}
+
 json::json(json&&) {std::cout << "move constructor" << std::endl;}
 json::~json() {std::cout << "distruttore" << std::endl;}
+json& json::operator=(json const& rhs) { // TODO
+    std::cout << "ASSIGN" << std::endl;
+    if (this != &rhs) {
+        // TODO fare il set_null() per svuotare qualsiasi contenuto
+        auto ptr = rhs.pimpl->l_front;
+        while (ptr) {
+            push_back(ptr->info);
+            ptr = ptr->next;
+        }
+    }
+    return *this;
+}
+json& json::operator=(json&& rhs) {std::cout << "aaaaaa" << std::endl; return rhs;} // TODO
 
-bool json::is_list() const {return pimpl->is_list();}
-bool json::is_dictionary() const {return pimpl->is_dictionary();}
-bool json::is_string() const {return pimpl->is_string();}
-bool json::is_number() const {return pimpl->is_number();}
-bool json::is_bool() const {return pimpl->is_bool();}
-bool json::is_null() const {return pimpl->is_null();}
-double& json::get_number() {return pimpl->get_number();}
-double const& json::get_number() const {return pimpl->get_number();}
-bool& json::get_bool() {return pimpl->get_bool();}
-bool const& json::get_bool() const {return pimpl->get_bool();}
-std::string& json::get_string() {return pimpl->get_string();}
-std::string const& json::get_string() const {return pimpl->get_string();}
-void json::set_string(std::string const& s) {pimpl->set_string(s);}
-void json::set_bool(bool b) {pimpl->set_bool(b);}
-void json::set_number(double n) {pimpl->set_number(n);}
-void json::set_null() {} // TODO
-void json::set_list() {pimpl->set_list();}
-void json::set_dictionary() {} // TODO
-void json::push_front(json const& j) {pimpl->push_front(j);}
-void json::push_back(json const& j) {pimpl->push_back(j);}
+bool json::is_list() const {return pimpl->type == '[';}
+bool json::is_dictionary() const {return pimpl->type == '{';}
+bool json::is_string() const {return pimpl->string != "\0";}
+bool json::is_number() const {return pimpl->num != pimpl->inf;}
+bool json::is_bool() const {return pimpl->type == 'b';}
+bool json::is_null() const {return pimpl->type == '\0' and  pimpl->num == pimpl->inf and pimpl->string == "\0" and pimpl->l_front== nullptr and pimpl->d_front == nullptr;}
+double& json::get_number() {return pimpl->num;}
+double const& json::get_number() const {return pimpl->num;}
+bool& json::get_bool() {return pimpl->boolean;}
+bool const& json::get_bool() const {return pimpl->boolean;}
+std::string& json::get_string() {return pimpl->string;}
+std::string const& json::get_string() const {return pimpl->string;}
+void json::set_string(std::string const& s) {pimpl->string = s;}
+void json::set_bool(bool b) {pimpl->boolean = b; pimpl->type = 'b';}
+void json::set_number(double n) {pimpl->num = n;}
+void json::set_null() {} // TODO: chiamare prima di ogni set
+void json::set_list() {pimpl->type = '[';} // soluzione temporanea che usa type per discriminare se è una lista
+void json::set_dictionary() {pimpl->type = '{';} // soluzione temporanea che usa type per discriminare se è un dizionario
+
+void json::push_front(json const& j) {
+    if (is_list()) {
+        if (pimpl->l_front == nullptr) {
+            pimpl->l_front = pimpl->l_back = new impl::List_cell{j, nullptr};
+        } else {
+            pimpl->l_front = new impl::List_cell{j, pimpl->l_front};
+        }
+    } else {
+        std::cout << "Push front fallito: non una lista" << std::endl; // TODO: sostituire con eccezione
+    }
+}
+void json::push_back(json const& j) {
+    if (is_list()) {
+        if (pimpl->l_front == nullptr) {
+            push_front(j);
+        } else {
+            pimpl->l_back->next = new impl::List_cell {j, nullptr};
+            pimpl->l_back = pimpl->l_back->next;
+        }
+    } else {
+        std::cout << "Push back fallito: non una lista" << std::endl; // TODO: sostituire con eccezione
+    }
+}
+void json::insert(std::pair<std::string,json> const&) {}
+
+
+
+
 
 
 
 
 
 // -------------------- TEST --------------------
-void check_type(json& j) { // copy constructor non ancora definito
+void check_type(json& j) {
     std::cout << "number? " << j.is_number() << std::endl;
     std::cout << "boolean? " << j.is_bool() << std::endl;
     std::cout << "string? " << j.is_string() << std::endl;
@@ -141,6 +160,5 @@ int main () {
     j.set_string("ciao");
 
     check_type(j);
-    std::cout << "Actual value: " << j.get_string() << std::endl;
     return 0;
 }
