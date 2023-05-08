@@ -1,16 +1,106 @@
 #include "json.hpp"
 
-std::istream& operator>>(std::istream& lhs, json& rhs) { // TODO
+void J(std::istream&, json&);
+
+void L(std::istream& is, json& j) {
     char c;
-    lhs >> c; // salto gli spazi e leggo
-    if (c >= '0' and c <= '9') {
-        lhs.putback(c);
-        lhs >> rhs.get_number();
+    do {
+        J(is, j);
+        is >> c;
+    } while (c == ',');
+    if (c != ']') {
+        std::cout << "closing ] expected, found: " << c << std::endl;
+        exit(0);
     } else {
-        // lhs >> rhs.pimpl->type;
+        is >> c;
     }
-    return lhs;
 }
+
+void J(std::istream& is, json& j) {
+    char c;
+    is >> c; // salto gli spazi e leggo
+    if (c >= '0' and c <= '9') { // num
+        std::string s_num;
+        s_num.push_back(c);
+        while ((is >> c) and (c >= '0' and c <= '9') or c == '.') {
+            s_num.push_back(c);
+        }
+        is.putback(c);
+        double num = stod(s_num);
+        // debug: std::cout << num << std::endl;
+        // creo json: num
+    } else if (c == 't'){ // bool->true
+        is >> c;
+        if (c != 'r') {std::cout << "r expected" << std::endl; exit(0);}
+        is >> c;
+        if (c != 'u') {std::cout << "u expected" << std::endl; exit(0);}
+        is >> c;
+        if (c != 'e') {std::cout << "e expected" << std::endl; exit(0);}
+        is >> c;
+        // creo json: bool->true
+    } else if (c == 'f') { // bool->false
+        is >> c;
+        if (c != 'a') {std::cout << "a expected" << std::endl; exit(0);}
+        is >> c;
+        if (c != 'l') {std::cout << "l expected" << std::endl; exit(0);}
+        is >> c;
+        if (c != 's') {std::cout << "s expected" << std::endl; exit(0);}
+        is >> c;
+        if (c != 'e') {std::cout << "e expected" << std::endl; exit(0);}
+        is >> c;
+        // creo json: bool->false
+    } else if (c == 'n') { // null
+        is >> c;
+        if (c != 'u') {std::cout << "u expected" << std::endl; exit(0);}
+        is >> c;
+        if (c != 'l') {std::cout << "l expected" << std::endl; exit(0);}
+        is >> c;
+        if (c != 'l') {std::cout << "l expected" << std::endl; exit(0);}
+        is >> c;
+        // creo json: null
+    } else if (c == '\0') {
+        // creo json: null
+    }else if (c == '"') { // string
+        std::string s;
+        is >> c;
+        while (c != '"') {
+            if (is.eof()) {
+                std::cout << "reached eof, without finding closing \"" << std::endl;
+                exit(0);
+            }
+            if (c == '\\') {
+                s.push_back(c);
+                is.get(c);
+                if (c == '"') {
+                    s.push_back(c);
+                    is.get(c);
+                }
+            } else {
+                s.push_back(c);
+                is.get(c);
+            }
+        }
+        is >> c; // closing "
+        // debug: std::cout << s << std::endl;
+
+    } else if (c == '[') {
+        L(is, j);
+    } else {
+        is.putback(c);
+        std::cout << "unknown symbol: " << c << std::endl;
+        exit(0);
+    }
+}
+
+std::istream& operator>>(std::istream& lhs, json& rhs) {
+    J(lhs, rhs);
+    if (lhs.eof()) return lhs;
+    else {
+        std::cout << "istream not empty after parsing" << std::endl;
+        exit(0);
+    }
+}
+
 
 // -------------------- IMPLEMENTATION --------------------
 struct json::impl {
@@ -332,16 +422,8 @@ void check_type(json& j) {
 }
 int main () {
     json j;
-    j.set_string("ciao");
-    std::cout << j.get_string() << std::endl;
-
-    std::cout << std::endl;
-    json a;
-    a.set_number(3);
-    check_type(a);
-    a = j;
-    check_type(a);
-    std::cout << a.get_string() << std::endl;
+    std::ifstream is("input.json");
+    is >> j;
 
     return 0;
 }
