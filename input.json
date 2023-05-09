@@ -1,1 +1,6 @@
-"ciao"
+[
+    "ciao", 3.14, false,
+    [
+        null
+    ]
+]

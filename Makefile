@@ -1,2 +1,2 @@
 all:
-	g++ -std=c++17 main.cpp -o test && ./test
+	g++ -std=c++17 test.cpp -o test && ./test

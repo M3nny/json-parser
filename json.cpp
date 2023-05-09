@@ -8,12 +8,7 @@ void L(std::istream& is, json& j) {
         J(is, j);
         is >> c;
     } while (c == ',');
-    if (c != ']') {
-        std::cout << "closing ] expected, found: " << c << std::endl;
-        exit(0);
-    } else {
-        is >> c;
-    }
+    is.putback(c);
 }
 
 void J(std::istream& is, json& j) {
@@ -30,39 +25,41 @@ void J(std::istream& is, json& j) {
         // debug: std::cout << num << std::endl;
         // creo json: num
     } else if (c == 't'){ // bool->true
-        is >> c;
-        if (c != 'r') {std::cout << "r expected" << std::endl; exit(0);}
-        is >> c;
-        if (c != 'u') {std::cout << "u expected" << std::endl; exit(0);}
-        is >> c;
-        if (c != 'e') {std::cout << "e expected" << std::endl; exit(0);}
-        is >> c;
+        std::string target = "true";
+        for (int i = 1; i < target.length(); i++) {
+            is >> c;
+            if (c != target.at(i)) {
+                std::cout << target.at(i) << " expected, found: " << c << std::endl;
+                exit(0);
+            }
+        }
         // creo json: bool->true
     } else if (c == 'f') { // bool->false
-        is >> c;
-        if (c != 'a') {std::cout << "a expected" << std::endl; exit(0);}
-        is >> c;
-        if (c != 'l') {std::cout << "l expected" << std::endl; exit(0);}
-        is >> c;
-        if (c != 's') {std::cout << "s expected" << std::endl; exit(0);}
-        is >> c;
-        if (c != 'e') {std::cout << "e expected" << std::endl; exit(0);}
-        is >> c;
+        std::string target = "false";
+        for (int i = 1; i < target.length(); i++) {
+            is >> c;
+            if (c != target.at(i)) {
+                std::cout << target.at(i) << " expected, found: " << c << std::endl;
+                exit(0);
+            }
+        }
         // creo json: bool->false
     } else if (c == 'n') { // null
-        is >> c;
-        if (c != 'u') {std::cout << "u expected" << std::endl; exit(0);}
-        is >> c;
-        if (c != 'l') {std::cout << "l expected" << std::endl; exit(0);}
-        is >> c;
-        if (c != 'l') {std::cout << "l expected" << std::endl; exit(0);}
-        is >> c;
+        std::string target = "null";
+        for (int i = 1; i < target.length(); i++) {
+            is >> c;
+            if (c != target.at(i)) {
+                std::cout << target.at(i) << " expected, found: " << c << std::endl;
+                exit(0);
+            }
+        }
         // creo json: null
     } else if (c == '\0') {
+        std::cout << "[" << char(is.peek()) << "]" << std::endl;
         // creo json: null
-    }else if (c == '"') { // string
+    } else if (c == '"') { // string
         std::string s;
-        is >> c;
+        is.get(c);
         while (c != '"') {
             if (is.eof()) {
                 std::cout << "reached eof, without finding closing \"" << std::endl;
@@ -80,11 +77,20 @@ void J(std::istream& is, json& j) {
                 is.get(c);
             }
         }
-        is >> c; // closing "
         // debug: std::cout << s << std::endl;
 
     } else if (c == '[') {
-        L(is, j);
+        // TODO: gestire lista [ ]
+        if (is.peek() == ']') { // lista vuota
+            is >> c;
+        } else {
+            L(is, j);
+            is >> c;
+            if (c != ']') {
+                std::cout << "closing ] expected, found: " << c << std::endl;
+                exit(0);
+            }
+        }
     } else {
         is.putback(c);
         std::cout << "unknown symbol: " << c << std::endl;
@@ -93,7 +99,9 @@ void J(std::istream& is, json& j) {
 }
 
 std::istream& operator>>(std::istream& lhs, json& rhs) {
+    char c;
     J(lhs, rhs);
+    lhs >> c; // mangio l'ultimo carattere newline
     if (lhs.eof()) return lhs;
     else {
         std::cout << "istream not empty after parsing" << std::endl;
@@ -401,29 +409,4 @@ void json::insert(std::pair<std::string,json> const& j) {
     } else {
         std::cout << "Insert fallito: non un dizionario" << std::endl; // TODO: sostituire con eccezione
     }
-}
-
-
-
-
-
-
-
-
-
-// -------------------- TEST --------------------
-void check_type(json& j) {
-    std::cout << "number? " << j.is_number() << std::endl;
-    std::cout << "boolean? " << j.is_bool() << std::endl;
-    std::cout << "string? " << j.is_string() << std::endl;
-    std::cout << "list? " << j.is_list() << std::endl;
-    std::cout << "dictionary? " << j.is_dictionary() << std::endl;
-    std::cout << "null? " << j.is_null() << std::endl;
-}
-int main () {
-    json j;
-    std::ifstream is("input.json");
-    is >> j;
-
-    return 0;
 }
