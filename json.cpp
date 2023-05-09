@@ -1,19 +1,24 @@
 #include "json.hpp"
 
-void J(std::istream&, json&);
+json J(std::istream&);
 
-void L(std::istream& is, json& j) {
+json L(std::istream& is) {
     char c;
+    json j;
+    j.set_list();
     do {
-        J(is, j);
+        j.push_back(J(is));
         is >> c;
     } while (c == ',');
     is.putback(c);
+    return j;
 }
 
-void J(std::istream& is, json& j) {
+json J(std::istream& is) {
+    json j;
     char c;
     is >> c; // salto gli spazi e leggo
+
     if (c >= '0' and c <= '9') { // num
         std::string s_num;
         s_num.push_back(c);
@@ -22,8 +27,9 @@ void J(std::istream& is, json& j) {
         }
         is.putback(c);
         double num = stod(s_num);
-        // debug: std::cout << num << std::endl;
-        // creo json: num
+        j.set_number(num);
+        return j;
+
     } else if (c == 't'){ // bool->true
         std::string target = "true";
         for (int i = 1; i < target.length(); i++) {
@@ -33,7 +39,9 @@ void J(std::istream& is, json& j) {
                 exit(0);
             }
         }
-        // creo json: bool->true
+        j.set_bool(true);
+        return j;
+
     } else if (c == 'f') { // bool->false
         std::string target = "false";
         for (int i = 1; i < target.length(); i++) {
@@ -43,7 +51,9 @@ void J(std::istream& is, json& j) {
                 exit(0);
             }
         }
-        // creo json: bool->false
+        j.set_bool(false);
+        return j;
+
     } else if (c == 'n') { // null
         std::string target = "null";
         for (int i = 1; i < target.length(); i++) {
@@ -53,10 +63,13 @@ void J(std::istream& is, json& j) {
                 exit(0);
             }
         }
-        // creo json: null
+        j.set_null();
+        return j;
+
     } else if (c == '\0') {
-        std::cout << "[" << char(is.peek()) << "]" << std::endl;
-        // creo json: null
+        j.set_null();
+        return j;
+
     } else if (c == '"') { // string
         std::string s;
         is.get(c);
@@ -77,19 +90,22 @@ void J(std::istream& is, json& j) {
                 is.get(c);
             }
         }
-        // debug: std::cout << s << std::endl;
+        j.set_string(s);
+        return j;
 
     } else if (c == '[') {
         is >> c;
         if (c != ']') { // lista vuota
             is.putback(c);
-            L(is, j);
+            j = L(is);
             is >> c;
             if (c != ']') {
                 std::cout << "closing ] expected, found: " << c << std::endl;
                 exit(0);
             }
         }
+        return j;
+
     } else {
         is.putback(c);
         std::cout << "unknown symbol: " << c << std::endl;
@@ -99,7 +115,7 @@ void J(std::istream& is, json& j) {
 
 std::istream& operator>>(std::istream& lhs, json& rhs) {
     char c;
-    J(lhs, rhs);
+    rhs = J(lhs);
     lhs >> c; // mangio l'ultimo carattere newline
     if (lhs.eof()) return lhs;
     else {
@@ -151,7 +167,7 @@ public:
     bool operator==(list_iterator const& rhs) const {return ptr == rhs.ptr;}
     bool operator!=(list_iterator const& rhs) const {return ptr != rhs.ptr;}
     list_iterator begin_list() {return list_iterator{(*this)->pimpl->l_front};}
-    list_iterator end_list() {return list_iterator{(*this)->pimpl->l_back};}
+    list_iterator end_list() {return list_iterator{nullptr};}
 
 private:
     impl::List_cell* ptr;
@@ -171,7 +187,7 @@ struct json::dictionary_iterator {
     bool operator==(dictionary_iterator const& rhs) const {return ptr == rhs.ptr;}
     bool operator!=(dictionary_iterator const& rhs) const {return ptr != rhs.ptr;}
     dictionary_iterator begin_dictionary() {return dictionary_iterator{(*this)->second.pimpl->d_front};} // !!
-    dictionary_iterator end_dictionary() {return dictionary_iterator{(*this)->second.pimpl->d_back};} // !!
+    dictionary_iterator end_dictionary() {return dictionary_iterator{nullptr};} // !!
 private:
     impl::Dictionary_cell* ptr;
 };
@@ -190,7 +206,7 @@ struct json::const_list_iterator {
     bool operator==(const_list_iterator const& rhs) const {return ptr == rhs.ptr;}
     bool operator!=(const_list_iterator const& rhs) const {return ptr != rhs.ptr;}
     const_list_iterator begin_list() const {return const_list_iterator{(*this)->pimpl->l_front};}
-    const_list_iterator end_list() const {return const_list_iterator{(*this)->pimpl->l_back};}
+    const_list_iterator end_list() const {return const_list_iterator{nullptr};}
 
 private:
     impl::List_cell* ptr;
@@ -210,7 +226,7 @@ struct json::const_dictionary_iterator {
     bool operator==(const_dictionary_iterator const& rhs) const {return ptr == rhs.ptr;}
     bool operator!=(const_dictionary_iterator const& rhs) const {return ptr != rhs.ptr;}
     const_dictionary_iterator begin_dictionary() const {return const_dictionary_iterator{(*this)->second.pimpl->d_front};} // !!
-    const_dictionary_iterator end_dictionary() const {return const_dictionary_iterator{(*this)->second.pimpl->d_back};} // !!
+    const_dictionary_iterator end_dictionary() const {return const_dictionary_iterator{nullptr};} // !!
 private:
     impl::Dictionary_cell* ptr;
 };
@@ -223,25 +239,7 @@ json::json() {
 }
 json::json(json const& rhs) : json() {
     std::cout << "COPY CONSTRUCTOR" << std::endl;
-    if (rhs.is_number()) {
-        set_number(rhs.get_number());
-    } else if (rhs.is_bool()) {
-        set_bool(rhs.is_bool());
-    } else if (rhs.is_string()) {
-        set_string(rhs.get_string());
-    } else if (rhs.is_list()) {
-        auto ptr = rhs.pimpl->l_front;
-        while (ptr) {
-            push_back(ptr->info);
-            ptr = ptr->next;
-        }
-    } else if (rhs.is_dictionary()) {
-        auto ptr = rhs.pimpl->d_front;
-        while (ptr) {
-            insert(ptr->info);
-            ptr = ptr->next;
-        }
-    }
+    *this = rhs;
 }
 json::json(json&& rhs) {
     std::cout << "MOVE CONSTRUCTOR" << std::endl;
@@ -255,13 +253,14 @@ json::~json() {
 json& json::operator=(json const& rhs) {
     std::cout << "COPY ASSIGNMENT" << std::endl;
     if (this != &rhs) {
+        (*this).pimpl->type = rhs.pimpl->type;
         if (rhs.is_number()) {
             set_number(rhs.get_number());
         } else if (rhs.is_bool()) {
             set_bool(rhs.is_bool());
         } else if (rhs.is_string()) {
             set_string(rhs.get_string());
-        } else if (rhs.is_list()) { // TODO: implementare con iteratori
+        } else if (rhs.is_list()) {
             auto ptr = rhs.pimpl->l_front;
             while (ptr) {
                 push_back(ptr->info);
@@ -280,7 +279,11 @@ json& json::operator=(json const& rhs) {
 json& json::operator=(json&& rhs) {
     std::cout << "MOVE ASSIGNMENT" << std::endl;
     if (this != &rhs) {
-        set_null();
+        pimpl->type = rhs.pimpl->type;
+        pimpl->num = rhs.get_number();
+        pimpl->boolean = rhs.get_bool();
+        pimpl->string = rhs.get_string();
+
         pimpl->l_front = rhs.pimpl->l_front;
         pimpl->l_back = rhs.pimpl->l_back;
         pimpl->d_front = rhs.pimpl->d_front;
@@ -331,6 +334,7 @@ bool json::is_number() const {return pimpl->num != pimpl->inf;}
 bool json::is_bool() const {return pimpl->type == 'b';}
 bool json::is_null() const {return pimpl->type == '\0' and  pimpl->num == pimpl->inf and pimpl->string == "\0" and pimpl->l_front== nullptr and pimpl->d_front == nullptr;}
 
+// TODO: lanciare eccezioni se chiamati su oggetti non del tipo corrispettivo
 double& json::get_number() {return pimpl->num;}
 double const& json::get_number() const {return pimpl->num;}
 bool& json::get_bool() {return pimpl->boolean;}

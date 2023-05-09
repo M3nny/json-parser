@@ -13,6 +13,7 @@ int main () {
     json j;
     std::ifstream is("input.json");
     is >> j;
+    check_type(j);
 
     return 0;
 }
