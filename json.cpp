@@ -80,10 +80,9 @@ void J(std::istream& is, json& j) {
         // debug: std::cout << s << std::endl;
 
     } else if (c == '[') {
-        // TODO: gestire lista [ ]
-        if (is.peek() == ']') { // lista vuota
-            is >> c;
-        } else {
+        is >> c;
+        if (c != ']') { // lista vuota
+            is.putback(c);
             L(is, j);
             is >> c;
             if (c != ']') {
