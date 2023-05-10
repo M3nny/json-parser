@@ -1,5 +1,29 @@
 #include "json.hpp"
 
+std::string parse_string(std::istream& is) {
+    char c;
+    std::string string;
+    is.get(c);
+    while (c != '"') {
+        if (is.eof()) {
+            std::cout << "reached eof, without finding closing \"" << std::endl;
+            exit(0);
+        }
+        if (c == '\\') {
+            string.push_back(c);
+            is.get(c);
+            if (c == '"') {
+                string.push_back(c);
+                is.get(c);
+            }
+        } else {
+            string.push_back(c);
+            is.get(c);
+        }
+    }
+    return string;
+}
+
 json J(std::istream&);
 
 json L(std::istream& is) {
@@ -14,18 +38,47 @@ json L(std::istream& is) {
     return j;
 }
 
+json D(std::istream& is) {
+    char c;
+    json j, value;
+    std::string key;
+    j.set_dictionary();
+    do {
+        is >> c; // leggo "
+        if (c != '"') {
+            std::cout << "Expected a string, found: " << c << std::endl; // TODO: sostituire con eccezione
+            exit(0);
+        } else {
+            key = parse_string(is); // leggo 'key'
+            is >> c;
+            if (c != ':') {
+                std::cout << "Expected ':', found: " << c << std::endl; // TODO: sostituire con eccezione
+                exit(0);
+            }
+            value = J(is); // leggo 'value'
+            std::pair<std::string, json> pair{key, value};
+            j.insert(pair);
+            is >> c;
+        }
+    } while (c == ',');
+    is.putback(c);
+    return j;
+}
+
 json J(std::istream& is) {
     json j;
     char c;
     is >> c; // salto gli spazi e leggo
 
+    // TODO: controllare anche numeri negativi
+    // controllare che un numero abbia solo un '.' (comunque non danno problemi perchè stod li gestisce bene)
     if (c >= '0' and c <= '9') { // num
         std::string s_num;
         s_num.push_back(c);
-        while ((is >> c) and (c >= '0' and c <= '9') or c == '.') {
+        while (((is >> c) and (c >= '0' and c <= '9') or c == '.') && !is.eof()) {
             s_num.push_back(c);
         }
-        is.putback(c);
+        if (!is.eof()) is.putback(c);
         double num = stod(s_num);
         j.set_number(num);
         return j;
@@ -71,31 +124,12 @@ json J(std::istream& is) {
         return j;
 
     } else if (c == '"') { // string
-        std::string s;
-        is.get(c);
-        while (c != '"') {
-            if (is.eof()) {
-                std::cout << "reached eof, without finding closing \"" << std::endl;
-                exit(0);
-            }
-            if (c == '\\') {
-                s.push_back(c);
-                is.get(c);
-                if (c == '"') {
-                    s.push_back(c);
-                    is.get(c);
-                }
-            } else {
-                s.push_back(c);
-                is.get(c);
-            }
-        }
-        j.set_string(s);
+        j.set_string(parse_string(is));
         return j;
 
     } else if (c == '[') {
         is >> c;
-        if (c != ']') { // lista vuota
+        if (c != ']') {
             is.putback(c);
             j = L(is);
             is >> c;
@@ -103,6 +137,23 @@ json J(std::istream& is) {
                 std::cout << "closing ] expected, found: " << c << std::endl;
                 exit(0);
             }
+        } else { // lista vuota
+            j.set_list();
+        }
+        return j;
+
+    } else if (c == '{') {
+        is >> c;
+        if (c != '}') {
+            is.putback(c);
+            j = D(is);
+            is >> c;
+            if (c != '}') {
+                std::cout << "closing } expected, found: " << c << std::endl;
+                exit(0);
+            }
+        } else { // dizionario vuoto
+            j.set_dictionary();
         }
         return j;
 
@@ -120,6 +171,9 @@ std::istream& operator>>(std::istream& lhs, json& rhs) {
     if (lhs.eof()) return lhs;
     else {
         std::cout << "istream not empty after parsing" << std::endl;
+        std::cout << "----- istream dump -----" << std::endl;
+        while (!lhs.eof()) std::cout << char(lhs.get());
+        std::cout << std::endl;
         exit(0);
     }
 }
@@ -387,6 +441,7 @@ void json::push_front(json const& j) {
         }
     } else {
         std::cout << "Push front fallito: non una lista" << std::endl; // TODO: sostituire con eccezione
+        exit(0);
     }
 }
 void json::push_back(json const& j) {
@@ -399,6 +454,7 @@ void json::push_back(json const& j) {
         }
     } else {
         std::cout << "Push back fallito: non una lista" << std::endl; // TODO: sostituire con eccezione
+        exit(0);
     }
 }
 void json::insert(std::pair<std::string,json> const& j) {
@@ -411,5 +467,6 @@ void json::insert(std::pair<std::string,json> const& j) {
         }
     } else {
         std::cout << "Insert fallito: non un dizionario" << std::endl; // TODO: sostituire con eccezione
+        exit(0);
     }
 }
