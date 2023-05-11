@@ -195,6 +195,16 @@ std::istream& operator>>(std::istream& lhs, json& rhs) {
 }
 
 
+std::ostream& json_print(std::ostream& os, json const& j);
+std::ostream& operator<<(std::ostream& lhs, json const& rhs) {
+    lhs << std::endl << "....................." << std::endl;
+    json_print(lhs, rhs);
+    lhs << std::endl << "....................." << std::endl;
+    return lhs;
+}
+
+
+
 // -------------------- IMPLEMENTATION --------------------
 struct json::impl {
 public:
@@ -340,7 +350,7 @@ json::const_dictionary_iterator json::begin_dictionary() const {
     }
 }
 json::const_dictionary_iterator json::end_dictionary() const {
-    if (is_list()) {
+    if (is_dictionary()) {
         return const_dictionary_iterator{nullptr};
     } else {
         throw json_exception{"end_dictionary() const called on a non dictionary json object"};
@@ -373,16 +383,20 @@ json& json::operator=(json const& rhs) {
         if (rhs.is_number()) {
             set_number(rhs.get_number());
         } else if (rhs.is_bool()) {
-            set_bool(rhs.is_bool());
+            set_bool(rhs.get_bool());
         } else if (rhs.is_string()) {
             set_string(rhs.get_string());
         } else if (rhs.is_list()) {
+            set_null();
+            set_list();
             auto ptr = rhs.pimpl->l_front;
             while (ptr) {
                 push_back(ptr->info);
                 ptr = ptr->next;
             }
         } else if (rhs.is_dictionary()) {
+            set_null();
+            set_dictionary();
             auto ptr = rhs.pimpl->d_front;
             while (ptr) {
                 insert(ptr->info);
@@ -542,4 +556,43 @@ void json::insert(std::pair<std::string,json> const& j) {
     } else {
         throw json_exception{"insert() called on a non dictionary json object"};
     }
+}
+
+std::ostream& json_print(std::ostream& os, json const& j) {
+    if (j.is_number()) os << j.get_number();
+    if (j.is_bool()) os << std::boolalpha << j.get_bool();
+    if (j.is_string()) os << '"' << j.get_string() << '"';
+    if (j.is_null()) os << "null";
+    if (j.is_list()) {
+        os << "[";
+        auto it = j.begin_list();
+        if (it != j.end_list()) { // la prima volta non stampo la virgola
+            json_print(os, *it);
+            it++;
+        }
+        while (it != j.end_list()) { // partendo da un eventuale secondo elemento stampo prima la virgola e poi l'oggetto
+            os << ", ";
+            json_print(os, *it);
+            it++;
+        }
+        os << "]";
+    }
+    if (j.is_dictionary()) {
+        os << "{";
+        auto it = j.begin_dictionary();
+        if (it != j.end_dictionary()) { // la prima volta non stampo la virgola
+            os << '"' << it->first << "\" : ";
+            json_print(os, it->second);
+            it++;
+        }
+        while (it != j.end_dictionary()) { // partendo da un eventuale secondo elemento stampo prima la virgola e poi l'oggetto
+            os << ", ";
+            os << '"' << it->first << "\" : ";
+            json_print(os, it->second);
+            it++;
+        }
+        os << "}";
+
+    }
+    return os;
 }
