@@ -12,7 +12,12 @@ void check_type(json& j) {
 int main () {
     json j;
     std::ifstream is("input.json");
-    is >> j;
+    try {
+        is >> j;
+    } catch (json_exception& e) {
+        std::cout << e.msg << std::endl;
+        exit(0);
+    }
     check_type(j);
 
     return 0;
