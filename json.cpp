@@ -1,5 +1,363 @@
 #include "json.hpp"
 
+// -------------------- IMPLEMENTATION --------------------
+struct json::impl {
+public:
+    static constexpr double inf = std::numeric_limits<double>::max();
+    impl() : type('\0'), num(inf), boolean(false), string("\0"), l_front(nullptr), l_back(nullptr), d_front(nullptr), d_back(nullptr) {}
+
+    struct List_cell {
+        json info;
+        List_cell* next;
+    };
+    typedef List_cell* List;
+
+    struct Dictionary_cell {
+        std::pair<std::string, json> info;
+        Dictionary_cell* next;
+    };
+    typedef Dictionary_cell* Dict;
+
+    char type;
+    double num;
+    bool boolean;
+    std::string string;
+    List l_front, l_back;
+    Dict d_front, d_back;
+};
+
+// -------------------- CONSTRUCTORS - DESTRUCTOR --------------------
+json::json() {
+    std::cout << "CONSTRUCTOR" << std::endl;
+    pimpl = new impl;
+}
+json::json(json const& rhs) : json() {
+    std::cout << "COPY CONSTRUCTOR" << std::endl;
+    *this = rhs;
+}
+json::json(json&& rhs) {
+    std::cout << "MOVE CONSTRUCTOR" << std::endl;
+    *this = std::move(rhs);
+}
+json::~json() {
+    std::cout << "DESTRUCTOR" << std::endl;
+    set_null();
+    delete pimpl;
+}
+
+// -------------------- ITERATORS --------------------
+struct json::list_iterator {
+public:
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = json;
+    using pointer = json*;
+    using reference = json&;
+
+    list_iterator(impl::List_cell* l) : ptr(l) {}
+    reference operator*() const {return ptr->info;}
+    pointer operator->() const {return &(ptr->info);}
+    list_iterator& operator++() {ptr = ptr->next; return *this;}
+    list_iterator operator++(int) {list_iterator it = {ptr}; ++(*this); return it;}
+    bool operator==(list_iterator const& rhs) const {return ptr == rhs.ptr;}
+    bool operator!=(list_iterator const& rhs) const {return ptr != rhs.ptr;}
+private:
+    impl::List_cell* ptr;
+};
+json::list_iterator json::begin_list() {
+    if (is_list()) {
+        return list_iterator{pimpl->l_front};
+    } else {
+        throw json_exception{"begin_list() called on a non list json object"};
+    }
+}
+json::list_iterator json::end_list() {
+    if (is_list()) {
+        return list_iterator{nullptr};
+    } else {
+        throw json_exception{"end_list() called on a non list json object"};
+    }
+}
+
+struct json::dictionary_iterator {
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = std::pair<std::string, json>;
+    using pointer = std::pair<std::string, json>*;
+    using reference = std::pair<std::string, json>&;
+
+    dictionary_iterator(impl::Dictionary_cell* d) : ptr(d) {}
+    reference operator*() const {return ptr->info;}
+    pointer operator->() const {return &(ptr->info);}
+    dictionary_iterator& operator++() {ptr = ptr->next; return *this;}
+    dictionary_iterator operator++(int) {dictionary_iterator it = {ptr}; ++(*this); return it;}
+    bool operator==(dictionary_iterator const& rhs) const {return ptr == rhs.ptr;}
+    bool operator!=(dictionary_iterator const& rhs) const {return ptr != rhs.ptr;}
+private:
+    impl::Dictionary_cell* ptr;
+};
+json::dictionary_iterator json::begin_dictionary() {
+    if (is_dictionary()) {
+        return dictionary_iterator{pimpl->d_front};
+    } else {
+        throw json_exception{"begin_dictionary() called on a non dictionary json object"};
+    }
+}
+json::dictionary_iterator json::end_dictionary() {
+    if (is_dictionary()) {
+        return dictionary_iterator{nullptr};
+    } else {
+        throw json_exception{"end_dictionary() called on a non dictionary json object"};
+    }
+}
+
+struct json::const_list_iterator {
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = const json;
+    using pointer = const json*;
+    using reference = const json&;
+
+    const_list_iterator(impl::List_cell* l) : ptr(l) {}
+    reference operator*() const {return ptr->info;}
+    pointer operator->() const {return &(ptr->info);}
+    const_list_iterator& operator++() {ptr = ptr->next; return *this;}
+    const_list_iterator operator++(int) {const_list_iterator it = {ptr}; ++(*this); return it;}
+    bool operator==(const_list_iterator const& rhs) const {return ptr == rhs.ptr;}
+    bool operator!=(const_list_iterator const& rhs) const {return ptr != rhs.ptr;}
+private:
+    impl::List_cell* ptr;
+};
+json::const_list_iterator json::begin_list() const {
+    if (is_list()) {
+        return const_list_iterator{pimpl->l_front};
+    } else {
+        throw json_exception{"begin_list() const called on a non list json object"};
+    }
+}
+json::const_list_iterator json::end_list() const {
+    if (is_list()) {
+        return const_list_iterator{nullptr};
+    } else {
+        throw json_exception{"end_list() const called on a non list json object"};
+    }
+}
+
+struct json::const_dictionary_iterator {
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = const std::pair<std::string, json>;
+    using pointer = const std::pair<std::string, json>*;
+    using reference = const std::pair<std::string, json>&;
+
+    const_dictionary_iterator(impl::Dictionary_cell* d) : ptr(d) {}
+    reference operator*() const {return ptr->info;}
+    pointer operator->() const {return &(ptr->info);}
+    const_dictionary_iterator& operator++() {ptr = ptr->next; return *this;}
+    const_dictionary_iterator operator++(int) {const_dictionary_iterator it = {ptr}; ++(*this); return it;}
+    bool operator==(const_dictionary_iterator const& rhs) const {return ptr == rhs.ptr;}
+    bool operator!=(const_dictionary_iterator const& rhs) const {return ptr != rhs.ptr;}
+private:
+    impl::Dictionary_cell* ptr;
+};
+json::const_dictionary_iterator json::begin_dictionary() const {
+    if (is_dictionary()) {
+        return const_dictionary_iterator{pimpl->d_front};
+    } else {
+        throw json_exception{"begin_dictionary() const called on a non dictionary json object"};
+    }
+}
+json::const_dictionary_iterator json::end_dictionary() const {
+    if (is_dictionary()) {
+        return const_dictionary_iterator{nullptr};
+    } else {
+        throw json_exception{"end_dictionary() const called on a non dictionary json object"};
+    }
+}
+
+// -------------------- BOOL METHODS --------------------
+bool json::is_list() const {return pimpl->type == '[';}
+bool json::is_dictionary() const {return pimpl->type == '{';}
+bool json::is_string() const {return pimpl->string != "\0";}
+bool json::is_number() const {return pimpl->num != pimpl->inf;}
+bool json::is_bool() const {return pimpl->type == 'b';}
+bool json::is_null() const {return pimpl->type == '\0' and  pimpl->num == pimpl->inf and pimpl->string == "\0" and pimpl->l_front== nullptr and pimpl->d_front == nullptr;}
+
+// -------------------- JSON METHODS --------------------
+double& json::get_number() {
+    if (is_number()) return pimpl->num;
+    else throw json_exception{"get_number() called on a non number json object"};
+}
+double const& json::get_number() const {
+    if (is_number()) return pimpl->num;
+    else throw json_exception{"get_number() const called on a non number json object"};
+}
+bool& json::get_bool() {
+    if (is_bool()) return pimpl->boolean;
+    else throw json_exception{"get_bool() called on a non bool json object"};
+}
+bool const& json::get_bool() const {
+    if (is_bool()) return pimpl->boolean;
+    else throw json_exception{"get_bool() const called on a non bool json object"};
+}
+std::string& json::get_string() {
+    if (is_string()) return pimpl->string;
+    else throw json_exception{"get_string() called on a non string json object"};
+}
+std::string const& json::get_string() const {
+    if (is_string()) return pimpl->string;
+    else throw json_exception{"get_string() const called on a non string json object"};
+}
+
+void json::set_string(std::string const& s) {set_null(); pimpl->string = s;}
+void json::set_bool(bool b) {set_null(); pimpl->boolean = b; pimpl->type = 'b';}
+void json::set_number(double n) {set_null(); pimpl->num = n;}
+void json::set_list() {set_null(); pimpl->type = '[';}
+void json::set_dictionary() {set_null(); pimpl->type = '{';}
+void json::set_null() {
+    if (is_list()) {
+        auto ptr = pimpl->l_front;
+        while (ptr) {
+            ptr->info.set_null();
+            auto next = ptr->next;
+            delete ptr;
+            ptr = next;
+        }
+        pimpl->type = '\0';
+        pimpl->l_front = nullptr;
+        pimpl->l_back = nullptr;
+    } else if (is_dictionary()) {
+        auto ptr = pimpl->d_front;
+        while (ptr) {
+            ptr->info.second.set_null();
+            auto next = ptr->next;
+            delete ptr;
+            ptr = next;
+        }
+        pimpl->type = '\0';
+        pimpl->d_front = nullptr;
+        pimpl->d_back = nullptr;
+    } else {
+        pimpl->num = pimpl->inf;
+        pimpl->boolean = false;
+        pimpl->type = '\0';
+        pimpl->string = "\0";
+    }
+}
+
+void json::push_front(json const& j) {
+    if (is_list()) {
+        if (pimpl->l_front == nullptr) {
+            pimpl->l_front = pimpl->l_back = new impl::List_cell{j, nullptr};
+        } else {
+            pimpl->l_front = new impl::List_cell{j, pimpl->l_front};
+        }
+    } else {
+        throw json_exception{"push_front() called on a non list json object"};
+    }
+}
+void json::push_back(json const& j) {
+    if (is_list()) {
+        if (pimpl->l_front == nullptr) {
+            push_front(j);
+        } else {
+            pimpl->l_back->next = new impl::List_cell{j, nullptr};
+            pimpl->l_back = pimpl->l_back->next;
+        }
+    } else {
+        throw json_exception{"push_back() called on a non list json object"};
+    }
+}
+void json::insert(std::pair<std::string,json> const& j) {
+    if (is_dictionary()) {
+        if (pimpl->d_front == nullptr) {
+            pimpl->d_front = pimpl->d_back = new impl::Dictionary_cell{j, nullptr};
+        } else {
+            pimpl->d_back->next = new impl::Dictionary_cell{j, nullptr};
+            pimpl->d_back = pimpl->d_back->next;
+        }
+    } else {
+        throw json_exception{"insert() called on a non dictionary json object"};
+    }
+}
+
+// -------------------- OPERATORS OVERLOAD --------------------
+json& json::operator=(json const& rhs) {
+    std::cout << "COPY ASSIGNMENT" << std::endl;
+    if (this != &rhs) {
+        (*this).pimpl->type = rhs.pimpl->type;
+        if (rhs.is_number()) {
+            set_number(rhs.get_number());
+        } else if (rhs.is_bool()) {
+            set_bool(rhs.get_bool());
+        } else if (rhs.is_string()) {
+            set_string(rhs.get_string());
+        } else if (rhs.is_list()) {
+            set_null();
+            set_list();
+            auto ptr = rhs.pimpl->l_front;
+            while (ptr) {
+                push_back(ptr->info);
+                ptr = ptr->next;
+            }
+        } else if (rhs.is_dictionary()) {
+            set_null();
+            set_dictionary();
+            auto ptr = rhs.pimpl->d_front;
+            while (ptr) {
+                insert(ptr->info);
+                ptr = ptr->next;
+            }
+        }
+    }
+    return *this;
+}
+json& json::operator=(json&& rhs) {
+    std::cout << "MOVE ASSIGNMENT" << std::endl;
+    if (this != &rhs) {
+        pimpl->type = rhs.pimpl->type;
+        pimpl->num = rhs.pimpl->num;
+        pimpl->boolean = rhs.pimpl->boolean;
+        pimpl->string = rhs.pimpl->string;
+
+        pimpl->l_front = rhs.pimpl->l_front;
+        pimpl->l_back = rhs.pimpl->l_back;
+        pimpl->d_front = rhs.pimpl->d_front;
+        pimpl->d_back = rhs.pimpl->d_back;
+        rhs.pimpl->l_front = rhs.pimpl->l_back = nullptr;
+        rhs.pimpl->d_front = rhs.pimpl->d_back = nullptr;
+    }
+    return *this;
+}
+
+json const& json::operator[](std::string const& s) const{
+    if (is_dictionary()) {
+        auto ptr = pimpl->d_front;
+        while (ptr) {
+            if (ptr->info.first == s) {
+                return ptr->info.second;
+            }
+            ptr = ptr->next;
+        }
+        throw json_exception{"Key not found using operator[] const, cannot insert a new element into the dictionary"};
+    }
+    throw json_exception{"Operator[] const called on a non dictionary json object"};
+}
+json& json::operator[](std::string const& s) {
+    json* j = new json;
+    if (is_dictionary()) {
+        auto ptr = pimpl->d_front;
+        while (ptr) {
+            if (ptr->info.first == s) {
+                return ptr->info.second;
+            }
+            ptr = ptr->next;
+        }
+        std::pair<std::string, json> pair{"key", *j};
+        insert(pair);
+        return *j;
+    }
+    throw json_exception{"Operator[] called on a non dictionary json object"};
+}
+
+// -------------------- CONTEXT-FREE GRAMMAR --------------------
+json J(std::istream&);
 std::string parse_string(std::istream& is) {
     char c;
     std::string string;
@@ -22,8 +380,6 @@ std::string parse_string(std::istream& is) {
     }
     return string;
 }
-
-json J(std::istream&);
 
 json L(std::istream& is) {
     char c;
@@ -173,391 +529,7 @@ json J(std::istream& is) {
     }
 }
 
-std::istream& operator>>(std::istream& lhs, json& rhs) {
-    char c;
-    lhs >> c;
-    if (lhs.eof()) { // json vuoto
-        json j;
-        rhs = j;
-        return lhs;
-    } else {
-        lhs.putback(c);
-        rhs = J(lhs);
-        lhs >> c; // mangio l'ultimo carattere newline
-        if (lhs.eof()) return lhs;
-        else {
-            std::string error = "istream not empty after parsing\n----- istream dump -----";
-            while (!lhs.eof()) error += char(lhs.get());
-            error += "\n";
-            throw json_exception{error};
-        }
-    }
-}
-
-
-std::ostream& json_print(std::ostream& os, json const& j);
-std::ostream& operator<<(std::ostream& lhs, json const& rhs) {
-    lhs << std::endl << "....................." << std::endl;
-    json_print(lhs, rhs);
-    lhs << std::endl << "....................." << std::endl;
-    return lhs;
-}
-
-
-
-// -------------------- IMPLEMENTATION --------------------
-struct json::impl {
-public:
-    static constexpr double inf = std::numeric_limits<double>::max();
-    impl() : type('\0'), num(inf), boolean(false), string("\0"), l_front(nullptr), l_back(nullptr), d_front(nullptr), d_back(nullptr) {}
-
-    struct List_cell {
-        json info;
-        List_cell* next;
-    };
-    typedef List_cell* List;
-
-    struct Dictionary_cell {
-        std::pair<std::string, json> info;
-        Dictionary_cell* next;
-    };
-    typedef Dictionary_cell* Dict;
-
-    char type;
-    double num;
-    bool boolean;
-    std::string string;
-    List l_front, l_back;
-    Dict d_front, d_back;
-};
-
-// -------------------- ITERATORS --------------------
-struct json::list_iterator {
-public:
-    using iterator_category = std::forward_iterator_tag;
-    using value_type = json;
-    using pointer = json*;
-    using reference = json&;
-
-    list_iterator(impl::List_cell* l) : ptr(l) {}
-    reference operator*() const {return ptr->info;}
-    pointer operator->() const {return &(ptr->info);}
-    list_iterator& operator++() {ptr = ptr->next; return *this;}
-    list_iterator operator++(int) {list_iterator it = {ptr}; ++(*this); return it;}
-    bool operator==(list_iterator const& rhs) const {return ptr == rhs.ptr;}
-    bool operator!=(list_iterator const& rhs) const {return ptr != rhs.ptr;}
-private:
-    impl::List_cell* ptr;
-};
-json::list_iterator json::begin_list() {
-    if (is_list()) {
-        return list_iterator{pimpl->l_front};
-    } else {
-        throw json_exception{"begin_list() called on a non list json object"};
-    }
-}
-json::list_iterator json::end_list() {
-    if (is_list()) {
-        return list_iterator{nullptr};
-    } else {
-        throw json_exception{"end_list() called on a non list json object"};
-    }
-}
-
-struct json::dictionary_iterator {
-    using iterator_category = std::forward_iterator_tag;
-    using value_type = std::pair<std::string, json>;
-    using pointer = std::pair<std::string, json>*;
-    using reference = std::pair<std::string, json>&;
-
-    dictionary_iterator(impl::Dictionary_cell* d) : ptr(d) {}
-    reference operator*() const {return ptr->info;}
-    pointer operator->() const {return &(ptr->info);}
-    dictionary_iterator& operator++() {ptr = ptr->next; return *this;}
-    dictionary_iterator operator++(int) {dictionary_iterator it = {ptr}; ++(*this); return it;}
-    bool operator==(dictionary_iterator const& rhs) const {return ptr == rhs.ptr;}
-    bool operator!=(dictionary_iterator const& rhs) const {return ptr != rhs.ptr;}
-private:
-    impl::Dictionary_cell* ptr;
-};
-json::dictionary_iterator json::begin_dictionary() {
-    if (is_dictionary()) {
-        return dictionary_iterator{pimpl->d_front};
-    } else {
-        throw json_exception{"begin_dictionary() called on a non dictionary json object"};
-    }
-}
-json::dictionary_iterator json::end_dictionary() {
-    if (is_dictionary()) {
-        return dictionary_iterator{nullptr};
-    } else {
-        throw json_exception{"end_dictionary() called on a non dictionary json object"};
-    }
-}
-
-struct json::const_list_iterator {
-    using iterator_category = std::forward_iterator_tag;
-    using value_type = const json;
-    using pointer = const json*;
-    using reference = const json&;
-
-    const_list_iterator(impl::List_cell* l) : ptr(l) {}
-    reference operator*() const {return ptr->info;}
-    pointer operator->() const {return &(ptr->info);}
-    const_list_iterator& operator++() {ptr = ptr->next; return *this;}
-    const_list_iterator operator++(int) {const_list_iterator it = {ptr}; ++(*this); return it;}
-    bool operator==(const_list_iterator const& rhs) const {return ptr == rhs.ptr;}
-    bool operator!=(const_list_iterator const& rhs) const {return ptr != rhs.ptr;}
-private:
-    impl::List_cell* ptr;
-};
-json::const_list_iterator json::begin_list() const {
-    if (is_list()) {
-        return const_list_iterator{pimpl->l_front};
-    } else {
-        throw json_exception{"begin_list() const called on a non list json object"};
-    }
-}
-json::const_list_iterator json::end_list() const {
-    if (is_list()) {
-        return const_list_iterator{nullptr};
-    } else {
-        throw json_exception{"end_list() const called on a non list json object"};
-    }
-}
-
-struct json::const_dictionary_iterator {
-    using iterator_category = std::forward_iterator_tag;
-    using value_type = const std::pair<std::string, json>;
-    using pointer = const std::pair<std::string, json>*;
-    using reference = const std::pair<std::string, json>&;
-
-    const_dictionary_iterator(impl::Dictionary_cell* d) : ptr(d) {}
-    reference operator*() const {return ptr->info;}
-    pointer operator->() const {return &(ptr->info);}
-    const_dictionary_iterator& operator++() {ptr = ptr->next; return *this;}
-    const_dictionary_iterator operator++(int) {const_dictionary_iterator it = {ptr}; ++(*this); return it;}
-    bool operator==(const_dictionary_iterator const& rhs) const {return ptr == rhs.ptr;}
-    bool operator!=(const_dictionary_iterator const& rhs) const {return ptr != rhs.ptr;}
-private:
-    impl::Dictionary_cell* ptr;
-};
-json::const_dictionary_iterator json::begin_dictionary() const {
-    if (is_dictionary()) {
-        return const_dictionary_iterator{pimpl->d_front};
-    } else {
-        throw json_exception{"begin_dictionary() const called on a non dictionary json object"};
-    }
-}
-json::const_dictionary_iterator json::end_dictionary() const {
-    if (is_dictionary()) {
-        return const_dictionary_iterator{nullptr};
-    } else {
-        throw json_exception{"end_dictionary() const called on a non dictionary json object"};
-    }
-}
-
-
-// -------------------- JSON PUBLIC METHODS --------------------
-json::json() {
-    std::cout << "CONSTRUCTOR" << std::endl;
-    pimpl = new impl;
-}
-json::json(json const& rhs) : json() {
-    std::cout << "COPY CONSTRUCTOR" << std::endl;
-    *this = rhs;
-}
-json::json(json&& rhs) {
-    std::cout << "MOVE CONSTRUCTOR" << std::endl;
-    *this = std::move(rhs);
-}
-json::~json() {
-    std::cout << "DESTRUCTOR" << std::endl;
-    set_null();
-    delete pimpl;
-}
-json& json::operator=(json const& rhs) {
-    std::cout << "COPY ASSIGNMENT" << std::endl;
-    if (this != &rhs) {
-        (*this).pimpl->type = rhs.pimpl->type;
-        if (rhs.is_number()) {
-            set_number(rhs.get_number());
-        } else if (rhs.is_bool()) {
-            set_bool(rhs.get_bool());
-        } else if (rhs.is_string()) {
-            set_string(rhs.get_string());
-        } else if (rhs.is_list()) {
-            set_null();
-            set_list();
-            auto ptr = rhs.pimpl->l_front;
-            while (ptr) {
-                push_back(ptr->info);
-                ptr = ptr->next;
-            }
-        } else if (rhs.is_dictionary()) {
-            set_null();
-            set_dictionary();
-            auto ptr = rhs.pimpl->d_front;
-            while (ptr) {
-                insert(ptr->info);
-                ptr = ptr->next;
-            }
-        }
-    }
-    return *this;
-}
-json& json::operator=(json&& rhs) {
-    std::cout << "MOVE ASSIGNMENT" << std::endl;
-    if (this != &rhs) {
-        pimpl->type = rhs.pimpl->type;
-        pimpl->num = rhs.pimpl->num;
-        pimpl->boolean = rhs.pimpl->boolean;
-        pimpl->string = rhs.pimpl->string;
-
-        pimpl->l_front = rhs.pimpl->l_front;
-        pimpl->l_back = rhs.pimpl->l_back;
-        pimpl->d_front = rhs.pimpl->d_front;
-        pimpl->d_back = rhs.pimpl->d_back;
-        rhs.pimpl->l_front = rhs.pimpl->l_back = nullptr;
-        rhs.pimpl->d_front = rhs.pimpl->d_back = nullptr;
-    }
-    return *this;
-}
-
-json const& json::operator[](std::string const& s) const{
-    if (is_dictionary()) {
-        auto ptr = pimpl->d_front;
-        while (ptr) {
-            if (ptr->info.first == s) {
-                return ptr->info.second;
-            }
-            ptr = ptr->next;
-        }
-        throw json_exception{"Key not found using operator[] const, cannot insert a new element into the dictionary"};
-    }
-    throw json_exception{"Operator[] const called on a non dictionary json object"};
-}
-json& json::operator[](std::string const& s) {
-    json* j = new json;
-    if (is_dictionary()) {
-        auto ptr = pimpl->d_front;
-        while (ptr) {
-            if (ptr->info.first == s) {
-                return ptr->info.second;
-            }
-            ptr = ptr->next;
-        }
-        std::pair<std::string, json> pair{"key", *j};
-        insert(pair);
-        return *j;
-    }
-    throw json_exception{"Operator[] called on a non dictionary json object"};
-}
-
-bool json::is_list() const {return pimpl->type == '[';}
-bool json::is_dictionary() const {return pimpl->type == '{';}
-bool json::is_string() const {return pimpl->string != "\0";}
-bool json::is_number() const {return pimpl->num != pimpl->inf;}
-bool json::is_bool() const {return pimpl->type == 'b';}
-bool json::is_null() const {return pimpl->type == '\0' and  pimpl->num == pimpl->inf and pimpl->string == "\0" and pimpl->l_front== nullptr and pimpl->d_front == nullptr;}
-
-double& json::get_number() {
-    if (is_number()) return pimpl->num;
-    else throw json_exception{"get_number() called on a non number json object"};
-}
-double const& json::get_number() const {
-    if (is_number()) return pimpl->num;
-    else throw json_exception{"get_number() const called on a non number json object"};
-}
-bool& json::get_bool() {
-    if (is_bool()) return pimpl->boolean;
-    else throw json_exception{"get_bool() called on a non bool json object"};
-}
-bool const& json::get_bool() const {
-    if (is_bool()) return pimpl->boolean;
-    else throw json_exception{"get_bool() const called on a non bool json object"};
-}
-std::string& json::get_string() {
-    if (is_string()) return pimpl->string;
-    else throw json_exception{"get_string() called on a non string json object"};
-}
-std::string const& json::get_string() const {
-    if (is_string()) return pimpl->string;
-    else throw json_exception{"get_string() const called on a non string json object"};
-}
-
-void json::set_string(std::string const& s) {set_null(); pimpl->string = s;}
-void json::set_bool(bool b) {set_null(); pimpl->boolean = b; pimpl->type = 'b';}
-void json::set_number(double n) {set_null(); pimpl->num = n;}
-void json::set_list() {set_null(); pimpl->type = '[';}
-void json::set_dictionary() {set_null(); pimpl->type = '{';}
-void json::set_null() {
-    if (is_list()) {
-        auto ptr = pimpl->l_front;
-        while (ptr) {
-            ptr->info.set_null();
-            auto next = ptr->next;
-            delete ptr;
-            ptr = next;
-        }
-        pimpl->type = '\0';
-        pimpl->l_front = nullptr;
-        pimpl->l_back = nullptr;
-    } else if (is_dictionary()) {
-        auto ptr = pimpl->d_front;
-        while (ptr) {
-            ptr->info.second.set_null();
-            auto next = ptr->next;
-            delete ptr;
-            ptr = next;
-        }
-        pimpl->type = '\0';
-        pimpl->d_front = nullptr;
-        pimpl->d_back = nullptr;
-    } else {
-        pimpl->num = pimpl->inf;
-        pimpl->boolean = false;
-        pimpl->type = '\0';
-        pimpl->string = "\0";
-    }
-}
-
-void json::push_front(json const& j) {
-    if (is_list()) {
-        if (pimpl->l_front == nullptr) {
-            pimpl->l_front = pimpl->l_back = new impl::List_cell{j, nullptr};
-        } else {
-            pimpl->l_front = new impl::List_cell{j, pimpl->l_front};
-        }
-    } else {
-        throw json_exception{"push_front() called on a non list json object"};
-    }
-}
-void json::push_back(json const& j) {
-    if (is_list()) {
-        if (pimpl->l_front == nullptr) {
-            push_front(j);
-        } else {
-            pimpl->l_back->next = new impl::List_cell{j, nullptr};
-            pimpl->l_back = pimpl->l_back->next;
-        }
-    } else {
-        throw json_exception{"push_back() called on a non list json object"};
-    }
-}
-void json::insert(std::pair<std::string,json> const& j) {
-    if (is_dictionary()) {
-        if (pimpl->d_front == nullptr) {
-            pimpl->d_front = pimpl->d_back = new impl::Dictionary_cell{j, nullptr};
-        } else {
-            pimpl->d_back->next = new impl::Dictionary_cell{j, nullptr};
-            pimpl->d_back = pimpl->d_back->next;
-        }
-    } else {
-        throw json_exception{"insert() called on a non dictionary json object"};
-    }
-}
-
+// -------------------- I/O STREAMS OPERATORS OVERLOAD --------------------
 std::ostream& json_print(std::ostream& os, json const& j) {
     if (j.is_number()) os << j.get_number();
     if (j.is_bool()) os << std::boolalpha << j.get_bool();
@@ -595,4 +567,32 @@ std::ostream& json_print(std::ostream& os, json const& j) {
 
     }
     return os;
+}
+
+std::istream& operator>>(std::istream& lhs, json& rhs) {
+    char c;
+    lhs >> c;
+    if (lhs.eof()) { // json vuoto
+        json j;
+        rhs = j;
+        return lhs;
+    } else {
+        lhs.putback(c);
+        rhs = J(lhs);
+        lhs >> c; // mangio l'ultimo carattere newline
+        if (lhs.eof()) return lhs;
+        else {
+            std::string error = "istream not empty after parsing\n----- istream dump -----";
+            while (!lhs.eof()) error += char(lhs.get());
+            error += "\n";
+            throw json_exception{error};
+        }
+    }
+}
+
+std::ostream& operator<<(std::ostream& lhs, json const& rhs) {
+    lhs << std::endl << "....................." << std::endl;
+    json_print(lhs, rhs);
+    lhs << std::endl << "....................." << std::endl;
+    return lhs;
 }
