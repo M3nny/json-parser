@@ -444,7 +444,7 @@ json J(std::istream& is) {
                 is.putback(c);
             }
         }
-        while (((is >> c) and (c >= '0' and c <= '9') or c == '.') && !is.eof()) {
+        while ((((is >> c) and (c >= '0' and c <= '9')) or c == '.') and !is.eof()) {
             s_num.push_back(c);
         }
         if (!is.eof()) is.putback(c);
@@ -454,7 +454,7 @@ json J(std::istream& is) {
 
     } else if (c == 't'){ // bool->true
         std::string target = "true";
-        for (int i = 1; i < target.length(); i++) {
+        for (uint i = 1; i < target.length(); i++) {
             is >> c;
             if (c != target.at(i)) {
                 std::string error = "";
@@ -469,7 +469,7 @@ json J(std::istream& is) {
 
     } else if (c == 'f') { // bool->false
         std::string target = "false";
-        for (int i = 1; i < target.length(); i++) {
+        for (uint i = 1; i < target.length(); i++) {
             is >> c;
             if (c != target.at(i)) {
                 std::string error = "";
@@ -484,7 +484,7 @@ json J(std::istream& is) {
 
     } else if (c == 'n') { // null
         std::string target = "null";
-        for (int i = 1; i < target.length(); i++) {
+        for (uint i = 1; i < target.length(); i++) {
             is >> c;
             if (c != target.at(i)) {
                 std::string error = "";
