@@ -35,7 +35,7 @@ json::json(json const& rhs) : json() {
     std::cout << "COPY CONSTRUCTOR" << std::endl;
     *this = rhs;
 }
-json::json(json&& rhs) {
+json::json(json&& rhs) : json() {
     std::cout << "MOVE CONSTRUCTOR" << std::endl;
     *this = std::move(rhs);
 }
@@ -311,6 +311,7 @@ json& json::operator=(json const& rhs) {
 json& json::operator=(json&& rhs) {
     std::cout << "MOVE ASSIGNMENT" << std::endl;
     if (this != &rhs) {
+        set_null();
         pimpl->type = rhs.pimpl->type;
         pimpl->num = rhs.pimpl->num;
         pimpl->boolean = rhs.pimpl->boolean;
@@ -432,7 +433,6 @@ json J(std::istream& is) {
     char c;
     is >> c; // salto gli spazi e leggo
 
-    // controllare che un numero abbia solo un '.' (comunque non danno problemi perchè stod li gestisce bene)
     if ((c >= '0' and c <= '9') or c == '-') { // num
         std::string s_num;
         s_num.push_back(c);
