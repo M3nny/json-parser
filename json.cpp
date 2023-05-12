@@ -427,11 +427,18 @@ json J(std::istream& is) {
     char c;
     is >> c; // salto gli spazi e leggo
 
-    // TODO: controllare anche numeri negativi
     // controllare che un numero abbia solo un '.' (comunque non danno problemi perchè stod li gestisce bene)
-    if (c >= '0' and c <= '9') { // num
+    if ((c >= '0' and c <= '9') or c == '-') { // num
         std::string s_num;
         s_num.push_back(c);
+        if (c == '-') {
+            is >> c; // leggo la cifra dopo un eventuale '-'
+            if (c <= '0' or c >= '9') {
+                throw json_exception{"expected a number after parsing '-' sign"};
+            } else {
+                is.putback(c);
+            }
+        }
         while (((is >> c) and (c >= '0' and c <= '9') or c == '.') && !is.eof()) {
             s_num.push_back(c);
         }
