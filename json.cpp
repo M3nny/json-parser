@@ -336,8 +336,9 @@ json const& json::operator[](std::string const& s) const{
             ptr = ptr->next;
         }
         throw json_exception{"Key not found using operator[] const, cannot insert a new element into the dictionary"};
+    } else {
+        throw json_exception{"Operator[] const called on a non dictionary json object"};
     }
-    throw json_exception{"Operator[] const called on a non dictionary json object"};
 }
 json& json::operator[](std::string const& s) {
     if (is_dictionary()) {
@@ -355,8 +356,9 @@ json& json::operator[](std::string const& s) {
             pimpl->d_back = pimpl->d_back->next;
         }
         return pimpl->d_back->info.second;
+    } else {
+        throw json_exception{"Operator[] called on a non dictionary json object"};
     }
-    throw json_exception{"Operator[] called on a non dictionary json object"};
 }
 
 // -------------------- CONTEXT-FREE GRAMMAR --------------------
