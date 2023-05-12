@@ -281,7 +281,7 @@ void json::insert(std::pair<std::string,json> const& j) {
 json& json::operator=(json const& rhs) {
     std::cout << "COPY ASSIGNMENT" << std::endl;
     if (this != &rhs) {
-        (*this).pimpl->type = rhs.pimpl->type;
+        pimpl->type = rhs.pimpl->type;
         if (rhs.is_number()) {
             set_number(rhs.get_number());
         } else if (rhs.is_bool()) {
@@ -340,7 +340,6 @@ json const& json::operator[](std::string const& s) const{
     throw json_exception{"Operator[] const called on a non dictionary json object"};
 }
 json& json::operator[](std::string const& s) {
-    json* j = new json;
     if (is_dictionary()) {
         auto ptr = pimpl->d_front;
         while (ptr) {
@@ -349,9 +348,13 @@ json& json::operator[](std::string const& s) {
             }
             ptr = ptr->next;
         }
-        std::pair<std::string, json> pair{"key", *j};
-        insert(pair);
-        return *j;
+        if (pimpl->d_front == nullptr) {
+            pimpl->d_front = pimpl->d_back = new impl::Dictionary_cell{{s, json{}}, nullptr};
+        } else {
+            pimpl->d_back->next = new impl::Dictionary_cell{{s, json{}}, nullptr};
+            pimpl->d_back = pimpl->d_back->next;
+        }
+        return pimpl->d_back->info.second;
     }
     throw json_exception{"Operator[] called on a non dictionary json object"};
 }
@@ -393,7 +396,7 @@ json L(std::istream& is) {
     return j;
 }
 
-json D(std::istream& is) { // TODO: accettare {{{}}}
+json D(std::istream& is) {
     char c;
     json j, value;
     std::string key;
