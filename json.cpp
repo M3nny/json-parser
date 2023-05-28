@@ -435,6 +435,7 @@ json J(std::istream& is) {
 
     if ((c >= '0' and c <= '9') or c == '-') { // num
         std::string s_num;
+        bool separator = false;
         s_num.push_back(c);
         if (c == '-') {
             is >> c; // leggo la cifra dopo un eventuale '-'
@@ -445,6 +446,8 @@ json J(std::istream& is) {
             }
         }
         while ((((is >> c) and (c >= '0' and c <= '9')) or c == '.') and !is.eof()) {
+            if (c == '.' and separator == true) throw json_exception{"double separator '.' found while parsing a number"};
+            else if (c == '.' and separator == false) separator = true;
             s_num.push_back(c);
         }
         if (!is.eof()) is.putback(c);
