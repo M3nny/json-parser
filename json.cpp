@@ -434,24 +434,9 @@ json J(std::istream& is) {
     is >> c; // salto gli spazi e leggo
 
     if ((c >= '0' and c <= '9') or c == '-') { // num
-        std::string s_num;
-        bool separator = false;
-        s_num.push_back(c);
-        if (c == '-') {
-            is >> c; // leggo la cifra dopo un eventuale '-'
-            if (c <= '0' or c >= '9') {
-                throw json_exception{"expected a number after parsing '-' sign"};
-            } else {
-                is.putback(c);
-            }
-        }
-        while ((((is >> c) and (c >= '0' and c <= '9')) or c == '.') and !is.eof()) {
-            if (c == '.' and separator == true) throw json_exception{"double separator '.' found while parsing a number"};
-            else if (c == '.' and separator == false) separator = true;
-            s_num.push_back(c);
-        }
-        if (!is.eof()) is.putback(c);
-        double num = stod(s_num);
+        double num;
+        is.putback(c);
+        is >> num;
         j.set_number(num);
         return j;
 
@@ -597,9 +582,10 @@ std::istream& operator>>(std::istream& lhs, json& rhs) {
         lhs >> c; // mangio l'ultimo carattere newline
         if (lhs.eof()) return lhs;
         else {
-            std::string error = "istream not empty after parsing\n----- istream dump -----";
+            lhs.putback(c);
+            std::string error = "istream not empty after parsing\n----- istream dump -----\n";
             while (!lhs.eof()) error += char(lhs.get());
-            error += "\n";
+            error += "------------------------";
             throw json_exception{error};
         }
     }
