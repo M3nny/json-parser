@@ -27,20 +27,16 @@ public:
 };
 
 // -------------------- CONSTRUCTORS - DESTRUCTOR --------------------
-json::json() {
-    std::cout << "CONSTRUCTOR" << std::endl;
+json::json() { // CONSTRUCTOR
     pimpl = new impl;
 }
-json::json(json const& rhs) : json() {
-    std::cout << "COPY CONSTRUCTOR" << std::endl;
+json::json(json const& rhs) : json() { // COPY CONSTRUCTOR
     *this = rhs;
 }
-json::json(json&& rhs) : json() {
-    std::cout << "MOVE CONSTRUCTOR" << std::endl;
+json::json(json&& rhs) : json() { // MOVE CONSTRUCTOR
     *this = std::move(rhs);
 }
-json::~json() {
-    std::cout << "DESTRUCTOR" << std::endl;
+json::~json() { // DESTRUCTOR
     set_null();
     delete pimpl;
 }
@@ -278,8 +274,7 @@ void json::insert(std::pair<std::string,json> const& j) {
 }
 
 // -------------------- OPERATORS OVERLOAD --------------------
-json& json::operator=(json const& rhs) {
-    std::cout << "COPY ASSIGNMENT" << std::endl;
+json& json::operator=(json const& rhs) { // COPY ASSIGNMENT
     if (this != &rhs) {
         pimpl->type = rhs.pimpl->type;
         if (rhs.is_number()) {
@@ -308,8 +303,7 @@ json& json::operator=(json const& rhs) {
     }
     return *this;
 }
-json& json::operator=(json&& rhs) {
-    std::cout << "MOVE ASSIGNMENT" << std::endl;
+json& json::operator=(json&& rhs) { // MOVE ASSIGNMENT
     if (this != &rhs) {
         set_null();
         pimpl->type = rhs.pimpl->type;

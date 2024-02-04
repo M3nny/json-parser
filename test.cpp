@@ -10,7 +10,7 @@ void check_type(json& j) {
 }
 
 int main () {
-    json j, z;
+    json j;
     std::ifstream is("input.json");
 
     try {
@@ -26,28 +26,5 @@ int main () {
         std::cout << e.msg << std::endl;
         exit(0);
     }
-
-    json& y = *(++j.begin_list());
-    std::cout << y["quarta chiave"]["a"];
-
-
-    std::ifstream iss ("z.json");
-    try {
-        iss >> z;
-    } catch (json_exception& e) {
-        std::cout << e.msg << std::endl;
-        exit(0);
-    }
-
-    (*(++j.begin_list()))["prima chiave"] = z;
-
-    try {
-        std::cout << j;
-    } catch (json_exception& e) {
-        std::cout << e.msg << std::endl;
-        exit(0);
-    }
-
-
     return 0;
 }
