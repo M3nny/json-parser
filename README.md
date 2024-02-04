@@ -203,17 +203,13 @@ Se il `json` non è di tipo dizionario, questa funzione deve lanciare un’eccez
 
     std::ostream& operator<<(std::ostream& lhs, json const& rhs);
 
-Questo metodo scrive l’oggetto `rhs` sull’output stream `lhs` in formato json valido (vedi descrizione formato json all’inizio del documento). Nota: i separatori (spazi, tab, newlines) sono opzionali nel formato json (potete scegliere se metterli o no: è equivalente). 
+Questo metodo scrive l’oggetto `rhs` sull’output stream `lhs` in formato json valido.
 
 ---
 
     std::istream& operator>>(std::istream& lhs, json& rhs);
 
 Questo metodo legge da `lhs` un oggetto `json` e lo salva in `rhs` (sovrascrivendone il contenuto). Questa è la funzione che lancia il parser json realizzato: l’input stream è uno stream di caratteri che contiene un documento in formato json (come descritto all’inizio). L’operatore `>>` deve estrarre i dati dallo stream (usando il parser) e costruire l’oggetto `json` che contiene quei dati (cancellando il contenuto precedente di `rhs`, se questi sono presenti).
-
-Se la funzione riscontra dei problemi durante il parsing, deve venire lanciata un’eccezione `json_exception` (con messaggio `msg` a piacere). Cercate di rilevare il numero più elevato possibile di errori di parsing (testeremo il vostro codice anche su file json in formato errato, verificando che venga lanciata l’eccezione).
-  
-
 
 ## 3. Esempio
 
