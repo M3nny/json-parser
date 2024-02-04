@@ -1,6 +1,7 @@
 ## Json-parser
 
 Lo scopo del progetto è scrivere un parser (tramite grammatiche context-free) di file in formato json. Il contenuto del file deve essere salvato in un container C++ che permetta l’accesso (tramite iteratori e overloading di operatori) del contenuto letto dal file json.
+Di seguito sono riportati i punti più importanti della consegna.
 
 ## 1. Formato json
 
